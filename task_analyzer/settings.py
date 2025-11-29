@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-$ir(%+k+o(j$i+o%kc7*w92e@7*xr4x(1s2ciw50@exyht$_qd
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "task-prioritization-assistance-1.onrender.com",
+    "task-prioritization-assistance.onrender.com",
     "localhost",
     "127.0.0.1",
     ]
