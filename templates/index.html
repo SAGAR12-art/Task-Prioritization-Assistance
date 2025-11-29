@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Task Prioritization Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Task Prioritization Assistant</h1>
+      <p class="subtitle">
+        Add your tasks, choose a strategy, and let the system rank them for you.
+      </p>
+    </header>
+
+    <main>
+      <!-- LEFT COLUMN: INPUT -->
+      <section class="panel panel-left">
+        <h2>Add Tasks</h2>
+
+        <form id="taskForm" class="task-form">
+          <div class="form-row">
+            <label for="taskTitle">Title<span class="required">*</span></label>
+            <input
+              type="text"
+              id="taskTitle"
+              placeholder="e.g. Build login page"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <label for="taskDueDate">Due Date<span class="required">*</span></label>
+            <input type="date" id="taskDueDate" required />
+          </div>
+
+          <div class="form-row">
+            <label for="taskEstimatedHours">
+              Estimated Hours 
+              <span class="info-icon" data-info="Smaller tasks get higher priority in Fastest Wins strategy. This represents how long the task may take to complete.">ℹ️</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              id="taskEstimatedHours"
+              placeholder="e.g. 2.5 (Please read carefully info before entering value)"
+              required
+            />
+          </div>
+
+          <!-- 🔹 IMPORTANCE SCALE EXPLANATION -->
+          <div class="form-row">
+            <label for="taskImportance">
+              Importance (1–10)
+              <span class="info-icon" data-info="1–3 = Low priority, 4–7 = Medium, 8–10 = High priority. Higher importance boosts ranking in strategies like High Impact and Smart Balance.">ℹ️</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              id="taskImportance"
+              placeholder="e.g. 8 (Please read info carefully before entering value)"
+              required
+            />
+          </div>
+
+          <!-- 🔹 DEPENDENCIES EXPLANATION -->
+          <div class="form-row">
+            <label for="taskDependencies">
+              Dependencies (task IDs)
+              <span class="info-icon" data-info="IDs of tasks that must be completed before this task begins. For example: React depends on JS, so add JS task ID here.">ℹ️</span>
+            </label>
+            <input
+              type="text"
+              id="taskDependencies"
+              placeholder="e.g. 2, 3 (Please read info carefully before entering input)"
+            />
+          </div>
+
+          <div class="buttons-row">
+            <button type="button" id="addTaskBtn" class="btn primary">Add Task</button>
+            <button type="button" id="clearTasksBtn" class="btn secondary">Clear All</button>
+          </div>
+        </form>
+
+
+        <div class="tasks-preview">
+          <h3>Current Task List</h3>
+          <p class="hint">
+            Tasks are assigned IDs automatically in the order you add them (1, 2, 3, ...).
+          </p>
+          <ul id="taskPreviewList" class="task-list">
+            <!-- Filled by JS -->
+          </ul>
+        </div>
+
+        <div class="bulk-input">
+          <h3>Bulk JSON Input (Optional)</h3>
+          <p class="hint">
+            Paste an array of task objects here. Fields: title, due_date, estimated_hours,
+            importance, dependencies.
+          </p>
+          <textarea
+            id="bulkJson"
+            rows="6"
+            placeholder='[
+  {
+    "title": "Task A",
+    "due_date": "2025-12-01",
+    "estimated_hours": 2,
+    "importance": 8,
+    "dependencies": []
+  }
+]'
+          ></textarea>
+          <button type="button" id="loadJsonBtn" class="btn secondary">
+            Load Tasks from JSON
+          </button>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: STRATEGY + RESULTS -->
+      <section class="panel panel-right">
+        <div class="strategy-section">
+          <h2>Strategy & Analysis</h2>
+
+          <div class="form-row">
+            <label for="strategySelect">Strategy</label>
+            <select id="strategySelect">
+              <option value="smart_balance" selected>Smart Balance (Default)</option>
+              <option value="fastest_wins">Fastest Wins (Quick Tasks First)</option>
+              <option value="high_impact">High Impact (Most Important First)</option>
+              <option value="deadline_driven">Deadline Driven (Strict on Due Date)</option>
+            </select>
+          </div>
+
+          <button type="button" id="analyzeBtn" class="btn primary wide">
+            Analyze Tasks
+          </button>
+
+          <p id="statusMessage" class="status-message"></p>
+        </div>
+
+        <div class="results-section">
+          <h2>Recommended Order</h2>
+          <div class="legend">
+            <span class="badge high">High Priority</span>
+            <span class="badge medium">Medium Priority</span>
+            <span class="badge low">Low Priority</span>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="results-table" id="resultsTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Title</th>
+                  <th>Due Date</th>
+                  <th>Est. Hours</th>
+                  <th>Importance</th>
+                  <th>Score</th>
+                  <th>Explanation</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+                <!-- Filled by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{% static 'script.js' %}"></script>
+</body>
+</html>
