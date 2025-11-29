@@ -1,3 +1,25 @@
+"""
+scoring.py
+
+Contains the task scoring logic used by the API.
+
+Each task is scored based on:
+- urgency      (how close the due date is)
+- importance   (1–10 -> normalized)
+- effort       (estimated hours, favoring quick wins)
+- dependencies (whether the task unblocks many others)
+- circular dependency penalty
+
+Supports multiple strategies via STRATEGY_WEIGHTS.
+
+Additionally, the final ordering is dependency-aware:
+- For tasks that are NOT part of a circular dependency, we use a
+  score-guided topological order so that blockers (dependencies)
+  appear before the tasks that depend on them.
+- Tasks that are part of a circular dependency cannot be strictly
+  ordered, so they are penalized and placed at the end.
+
+"""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -41,7 +63,16 @@ STRATEGY_WEIGHTS: Dict[str, Dict[str, float]] = {
 # Helpers
 
 def _parse_due_date(value: Any) -> Optional[date]:
-   
+    """
+    Try to normalize different representations of a date into a date object.
+
+    Accepts:
+        - datetime.date
+        - datetime.datetime
+        - ISO string "YYYY-MM-DD"
+        - None / empty -> returns None
+
+    """
     if value is None or value == "":
         return None
 
@@ -64,7 +95,15 @@ def _parse_due_date(value: Any) -> Optional[date]:
 
 
 def compute_urgency_score(due_date: Any) -> float:
-   
+    """
+    Map the due date to an urgency score in [0, 1].
+
+    - Overdue / today : highest urgency
+    - Next few days   : high
+    - Weeks away      : medium / low
+    - No due date     : neutral-ish
+
+    """
     d = _parse_due_date(due_date)
     if d is None:
         return 0.3  # neutral if no date
@@ -87,7 +126,11 @@ def compute_urgency_score(due_date: Any) -> float:
 
 
 def compute_effort_score(estimated_hours: Any) -> float:
-   
+    """
+    Convert estimated hours into a 'quick win' score in [0, 1].
+
+    Smaller tasks -> higher score.
+    """
     try:
         h = float(estimated_hours)
     except (TypeError, ValueError):
@@ -105,7 +148,10 @@ def compute_effort_score(estimated_hours: Any) -> float:
 
 
 def normalize_importance(importance: Any) -> float:
-    
+    """
+    Normalize importance from 1–10 to 0–1.
+
+    """
     try:
         imp = int(importance)
     except (TypeError, ValueError):
@@ -120,7 +166,13 @@ def normalize_importance(importance: Any) -> float:
 
 
 def detect_cycles(tasks_by_id: Dict[Any, Dict[str, Any]]) -> Set[Any]:
-    
+    """
+    Detect circular dependencies using DFS.
+
+    Returns:
+        set of task IDs that are part of at least one cycle.
+        
+    """
     graph: Dict[Any, List[Any]] = {
         tid: t.get("dependencies", []) or []
         for tid, t in tasks_by_id.items()
@@ -154,7 +206,12 @@ def detect_cycles(tasks_by_id: Dict[Any, Dict[str, Any]]) -> Set[Any]:
 def compute_dependency_bonus(tasks: List[Dict[str, Any]]) -> Dict[Any, float]:
     
     dependents_count = defaultdict(int)
+    """
+    Compute how much each task is a "blocker" for others.
 
+    The more tasks that depend on a given task, the higher the bonus.
+
+    """
     # Count how many tasks list each ID as a dependency
     for t in tasks:
         deps = t.get("dependencies") or []
@@ -183,6 +240,39 @@ def score_tasks(
     tasks: List[Dict[str, Any]],
     strategy: str = "smart_balance",
 ) -> List[Dict[str, Any]]:
+    """
+    Score and sort tasks by priority for the given strategy.
+
+    Args:
+        tasks: list of dicts with at least
+            {
+                "id": any hashable unique identifier,
+                "title": str,
+                "due_date": date | datetime | "YYYY-MM-DD" | None,
+                "estimated_hours": float | int | None,
+                "importance": int (1–10),
+                "dependencies": list[id] (optional),
+            }
+
+        strategy: one of STRATEGY_WEIGHTS keys:
+            - "fastest_wins"
+            - "high_impact"
+            - "deadline_driven"
+            - "smart_balance" (default)
+
+    Returns:
+        New list of tasks dicts with added:
+            - "score": float
+            - "explanation": str
+
+        The output list is ordered so that:
+            - Among non-circular tasks, blockers tend to appear
+              before the tasks that depend on them (dependency-aware
+              topological ordering guided by score).
+            - Tasks that are part of circular dependencies are
+              penalized and placed at the end.
+              
+    """
     weights = STRATEGY_WEIGHTS.get(strategy, STRATEGY_WEIGHTS["smart_balance"])
 
     # Build lookup for cycle detection
